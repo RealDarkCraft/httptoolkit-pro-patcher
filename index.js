@@ -162,7 +162,26 @@ const patchApp = async () => {
     console.error(chalk.redBright`[-] An error occurred while extracting app`, e)
     process.exit(1)
   }
+  // Add mising modules
+  const packageJsonPath = path.join(tempPath, 'package.json')
+  if (!fs.existsSync(packageJsonPath)) {
+    console.error(chalk.redBright`[-] package.json not found`)
+    await cleanUp(true)
+  }
+  const packageData = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
 
+  // Ensure dependencies object exists
+  packageData.dependencies ??= {}
+
+  // Add some dependencies to be sure the code dont throw module not found error
+  packageData.dependencies['https-proxy-agent'] = '^6.0.0'
+  packageData.dependencies['express'] ??= '^4.18.2' // optional if you want to keep original patch install
+  packageData.dependencies['axios'] ??= '^1.5.0'
+  packageData.dependencies['node-zstandard'] = '^1.0.0'
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageData, null, 2), 'utf-8')
+  console.log(chalk.greenBright`[+] Patched package.json`)
+
+  // Patch index
   const indexPath = path.join(tempPath, 'build', 'index.js')
   if (!fs.existsSync(indexPath)) {
     console.error(chalk.redBright`[-] Index file not found`)
