@@ -101,29 +101,9 @@ app.all('*', async (req, res) => {
 
     if (!(await hasInternet())) {
         console.log(`[Patcher] No internet connection, trying to serve directly from temp path`)
-        if (fs.existsSync(filePath)) {
-            console.log(`[Patcher] Serving from temp path: ${filePath}`)
-            if (isZstdBuffer(data) == 1) {
-                fs.writeFileSync(filePath + ".comp", data)
-                compressed = 1
-                await new Promise((resolve, reject) => {
-                    zstd.decompress(filePath + ".comp", filePath + ".decomp", (err, result) => {
-                        if (err) reject(err);
-                        else resolve(result);
-                    });
-                });
-                fs.unlinkSync(filePath + ".comp");
-                data = fs.readFileSync(filePath + ".decomp");
-                res.sendFile(filePath + "decomp")
-                fs.unlinkSync(filePath + ".decomp");
-            } else {
-                res.sendFile(filePath)
-            }
-        } else {
-            console.log(`[Patcher] File not found in temp path: ${filePath}`)
-            const error = `No internet connection and file is not cached for file: ${requestURL}`
-            res.status(200).send(path.extname(filePath) === '.js' ? `console.error(\`${error}\`);` : error)
-        }
+        console.log(`[Patcher] File not found in temp path: ${filePath}`)
+        const error = `No internet connection and file is not cached for file: ${requestURL}`
+        res.status(200).send(path.extname(filePath) === '.js' ? `console.error(\`${error}\`);` : error)
         return
     }
 
@@ -137,51 +117,7 @@ app.all('*', async (req, res) => {
     let status_code = 0
 
     try {
-        if (fs.existsSync(filePath)) { //? Check if file exists in temp path
-            status_code = 0
-            retry = 0
-            while ((status_code != 200 || status_code == 204) && (retry < HTTP_RETRY_MAX)) {
-                try {
-                    if (retry > -1) {
-                        retry = retry + 1
-                    }
-                    let remoteHttp = await axiosInstance.head(req.url, {
-                        headers: reqHeaders
-                    })
-                    const remoteDate = new Date(remoteHttp.headers['last-modified']);
-                    status_code = remoteHttp.status
-                    if (remoteDate < new Date(fs.statSync(filePath).mtime)) {
-                        console.log(`[Patcher] File not changed, serving from temp path`)
-
-                        if (isZstdBuffer(data) == 1) {
-                            fs.writeFileSync(filePath + ".comp", data)
-                            compressed = 1
-                            await new Promise((resolve, reject) => {
-                                zstd.decompress(filePath + ".comp", filePath + ".decomp", (err, result) => {
-                                    if (err) reject(err);
-                                    else resolve(result);
-                                });
-                            });
-                            fs.unlinkSync(filePath + ".comp");
-                            data = fs.readFileSync(filePath + ".decomp");
-                            res.sendFile(filePath + "decomp")
-                            fs.unlinkSync(filePath + ".decomp");
-                        } else {
-                            res.sendFile(filePath)
-                            return
-                        }
-                    }
-                } catch (e) {
-                    status_code = 0
-                }
-            }
-        } else {
-            console.log(`[Patcher] File not found in temp path, downloading`)
-            status_code = 200
-        }
-        if (status_code == 0) {
-            console.log(`[Patcher] [ERR] Failed to fetch remote file date`)
-        }
+        console.log(`[Patcher] downloading File`)
         status_code = 0
         let remoteFile
         retry = 0
